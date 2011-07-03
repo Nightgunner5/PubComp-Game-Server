@@ -59,5 +59,22 @@ function write( data ) {
 }
 
 function processMessage( data ) {
-	console.log( data );
+	switch ( data.type ) {
+		case 'hello':
+			// Ignore for now
+			break;
+		case 'update':
+			console.log( 'Updating from version ' + VERSION + ' to ' + data.version + ' via git...' );
+			var git = require( 'child_process' ).spawn( 'git', ['pull'], {
+				cwd: __dirname
+			} );
+			git.stdout.pipe( process.stdout );
+			git.stderr.pipe( process.stderr );
+			git.on( 'exit', function( code ) {
+				process.exit();
+			} );
+			break;
+		default:
+			console.log( data );
+	}
 }
