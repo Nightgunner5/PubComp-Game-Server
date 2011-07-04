@@ -1,9 +1,13 @@
 var net = require( 'net' ),
-	config = require( './config' );
+	config = require( './config' ),
+	logsocket = require( './logsocket' ),
+	rcon = require( './rcon' ),
+	mapchooser = require( './mapchooser' ),
+	tf2logparser = require('tf2logparser').TF2LogParser;
 
 const VERSION = 1;
 
-var socket, connected = false, logBuffer = '';
+var socket, connected = false, logBuffer = '', tf2socket, log;
 
 function init() {
 	console.log( 'Connecting to ' + config.central[1] + ':' + config.central[0] + '...' );
@@ -58,10 +62,31 @@ function write( data ) {
 	socket.write( JSON.stringify( data ) + '\0' );
 }
 
+function startTF2() {
+	// Randomize RCON password
+	const rcon_chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'.split( '' );
+	var rcon_password = '';
+	for ( var i = 0; i < 64; i++ ) {
+		rcon_password += rcon_chars[Math.floor( Math.random() * rcon_chars.length )];
+	}
+
+	log = tf2logparser.create();
+	tf2socket = null;
+
+	logsocket.create( function( line ) {
+		logBuffer +=  line + '\n';
+		log.parseLine( line );
+		if ( !tf2socket && log.mapName )
+			tf2socket = rcon.create( '127.0.0.1', config.tf2port ).password( rcon_password );
+	} ).bind( 57015, '127.0.0.2' );
+
+	// TODO: actually start server
+}
+
 function processMessage( data ) {
 	switch ( data.type ) {
 		case 'hello':
-			// Ignore for now
+			startTF2();
 			break;
 		case 'update':
 			console.log( 'Updating from version ' + VERSION + ' to ' + data.version + ' via git...' );
