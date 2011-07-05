@@ -1,0 +1,5 @@
+node_modules/*
+readme.txt
+steam
+test*.so
+tfds/*

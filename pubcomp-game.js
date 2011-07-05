@@ -3,7 +3,8 @@ var net = require( 'net' ),
 	logsocket = require( './logsocket' ),
 	rcon = require( './rcon' ),
 	mapchooser = require( './mapchooser' ),
-	tf2logparser = require('tf2logparser').TF2LogParser;
+	tf2logparser = require('tf2logparser').TF2LogParser,
+	child_process = require( 'child_process' );
 
 const VERSION = 1;
 
@@ -80,7 +81,26 @@ function startTF2() {
 			tf2socket = rcon.create( '127.0.0.1', config.tf2port ).password( rcon_password );
 	} ).bind( 57015, '127.0.0.2' );
 
-	// TODO: actually start server
+	console.log( 'Checking TF2 installation...' );
+	var update = child_process.spawn( './update-tfds.sh', [], {
+		cwd: __dirname
+	} ), updateBuffer = '';
+	update.stdout.setEncoding( 'ascii' );
+	update.stdout.on( 'data', function( data ) {
+		updateBuffer += data;
+	} );
+	var updateBufferTimer = setInterval( function() {
+		if ( updateBuffer != '' ) {
+			write( { type: 'tfdsUpdate', done: false, data: updateBuffer } );
+			updateBuffer = '';
+		}
+	}, 1000 );
+	update.on( 'exit', function( code ) {
+		write( { type: 'tfdsUpdate', done: true, data: updateBuffer } );
+		clearInterval( updateBufferTimer );
+
+		// TODO Start TF2 here
+	} );
 }
 
 function processMessage( data ) {
@@ -90,7 +110,7 @@ function processMessage( data ) {
 			break;
 		case 'update':
 			console.log( 'Updating from version ' + VERSION + ' to ' + data.version + ' via git...' );
-			var git = require( 'child_process' ).spawn( 'git', ['pull'], {
+			var git = child_process.spawn( 'git', ['pull'], {
 				cwd: __dirname
 			} );
 			git.stdout.pipe( process.stdout );
